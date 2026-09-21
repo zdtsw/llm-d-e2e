@@ -66,7 +66,8 @@ SCHED_E2E_LEGACY = "inference_extension_scheduler_e2e_duration_seconds_count"
 SCHED_REQUEST_TOTAL = "llm_d_epp_request_total"
 SCHED_REQUEST_ERROR = "llm_d_epp_request_error_total"
 SCHED_REQUEST_ERROR_LEGACY = "inference_objective_request_error_total"
-POOL_READY_PODS = "inference_pool_ready_pods"
+READY_ENDPOINTS = "llm_d_epp_ready_endpoints"
+READY_ENDPOINTS_LEGACY = "inference_pool_ready_pods"
 PREFIX_INDEXER_SIZE = "llm_d_epp_prefix_indexer_size"
 
 # LoRA metrics (vLLM reports adapter state via lora_requests_info)
@@ -525,16 +526,16 @@ def validate_scheduler(epp: list[ScrapeResult]) -> list[CheckResult]:
                     message=f"request_errors={errors}",
                 )
             )
-        pods = r.get(POOL_READY_PODS)
-        if pods is not None:
+        endpoints = r.get(READY_ENDPOINTS, READY_ENDPOINTS_LEGACY)
+        if endpoints is not None:
             checks.append(
                 CheckResult(
-                    name="ready_pods",
-                    metric=POOL_READY_PODS,
+                    name="ready_endpoints",
+                    metric=READY_ENDPOINTS,
                     source=r.source,
-                    value=pods,
-                    passed=pods > 0,
-                    message=f"ready_pods={pods}",
+                    value=endpoints,
+                    passed=endpoints > 0,
+                    message=f"ready_endpoints={endpoints}",
                 )
             )
     return checks

@@ -95,6 +95,7 @@ vllm:gpu_cache_usage_perc 0.15
 def test_router_main_metrics_are_validated():
     text = """# TYPE llm_d_epp_scheduler_e2e_duration_seconds histogram
 llm_d_epp_scheduler_e2e_duration_seconds_count 1
+llm_d_epp_ready_endpoints 1
 llm_d_epp_flow_control_dispatch_cycle_duration_seconds_count 1
 llm_d_epp_flow_control_pool_saturation 0.5
 llm_d_epp_flow_control_request_enqueue_duration_seconds_count 1
@@ -102,12 +103,15 @@ llm_d_epp_flow_control_request_queue_duration_seconds_count 1
 """
     result = ScrapeResult(source="epp", metrics=parse_prometheus(text))
 
-    assert all(check.passed for check in validate_scheduler([result]))
+    scheduler_checks = validate_scheduler([result])
+    assert all(check.passed for check in scheduler_checks)
+    assert any(check.name == "ready_endpoints" for check in scheduler_checks)
     assert all(check.passed for check in validate_flow_control([result]))
 
 
 def test_legacy_router_metrics_remain_supported():
     text = """inference_extension_scheduler_e2e_duration_seconds_count 1
+inference_pool_ready_pods 1
 inference_extension_flow_control_dispatch_cycle_duration_seconds_count 1
 inference_extension_flow_control_pool_saturation 0.5
 inference_extension_flow_control_request_enqueue_duration_seconds_count 1
@@ -115,7 +119,9 @@ inference_extension_flow_control_request_queue_duration_seconds_count 1
 """
     result = ScrapeResult(source="epp", metrics=parse_prometheus(text))
 
-    assert all(check.passed for check in validate_scheduler([result]))
+    scheduler_checks = validate_scheduler([result])
+    assert all(check.passed for check in scheduler_checks)
+    assert any(check.name == "ready_endpoints" for check in scheduler_checks)
     assert all(check.passed for check in validate_flow_control([result]))
 
 

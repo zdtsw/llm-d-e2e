@@ -68,7 +68,7 @@ spec:
           failureThreshold: 5
 ```
 
-Commit this to the appropriate branch in `llm-d-conformance-manifests` (e.g. `main` for 3.5+, `3.4-stable` for 3.4).
+Commit this to the appropriate branch in `llm-d-conformance-manifests` (e.g. `main` for 3.5+, `3.4-GA` for 3.4).
 
 ## Step 2: Create the Test Case Config
 
@@ -137,7 +137,7 @@ validation:
   # ... other fields ...
   metricsCheck:
     enabled: true
-    checkVLLM: true          # test_10: basic vLLM request_success > 0
+    checkVLLM: true          # test_10: vllm:request_success_total > 0
     checkEPP: true           # scrape EPP pods (needed by other checks)
     checkPrefixCache: true   # test_11: prefix_queries > 0, hit rate
     checkScheduler: true     # test_13: scheduler_e2e_count > 0, ready_pods > 0
@@ -308,7 +308,7 @@ Manifests are version-specific. If your test case uses EPP features from a speci
 
 | RHAII Version | Manifest branch | EPP features available |
 |---|---|---|
-| 3.4 | `3.4-stable` | `precise-prefix-cache-scorer`, basic flow control |
+| 3.4 | `3.4-GA` | `precise-prefix-cache-scorer`, basic flow control |
 | 3.5+ | `main` | `precise-prefix-cache-producer`, `concurrency-detector`, token-based saturation |
 
 If the manifest uses 3.5 EPP plugins but runs on a 3.4 cluster, the EPP will CrashLoopBackOff.
@@ -333,7 +333,7 @@ test_09b_messages_responses — Anthropic /v1/messages + OpenAI /v1/responses
 test_10_metrics_vllm    — vLLM request_success > 0
 test_11_metrics_cache   — prefix cache queries/hits
 test_12_metrics_pd      — P/D disaggregation metrics
-test_13_metrics_scheduler — EPP scheduler_e2e_count > 0
+test_13_metrics_scheduler — EPP scheduler latency and ready endpoints > 0
 test_14_metrics_flow_control — flow control dispatch/saturation
 test_20_benchmark       — GuideLLM performance benchmark
 test_21_metrics_post_benchmark — metrics after benchmark
@@ -501,9 +501,9 @@ Each flag controls a specific conformance phase and validates different Promethe
 |---|---|---|---|
 | `checkVLLM` | `test_10` | `vllm:request_success_total > 0` | Always (basic sanity) |
 | `checkEPP` | — | Enables EPP pod scraping (required by other checks) | When using any EPP-level check |
-| `checkPrefixCache` | `test_11` | `prefix_queries > 0`, `prefix_hits >= 0`, hit rate | Cache-aware routing with `precise-prefix-cache-producer` + `prefix-cache-scorer` |
-| `checkScheduler` | `test_13` | `scheduler_e2e_count > 0`, `ready_pods > 0` | Any topology with an EPP/scheduler |
-| `checkFlowControl` | `test_14` | `dispatch_cycle_count > 0`, `request_enqueue_count > 0` | Flow control with `flowControl.saturationDetector` |
+| `checkPrefixCache` | `test_11` | `vllm:prefix_cache_queries` or `vllm:prefix_cache_queries_total` > 0, `vllm:prefix_cache_hits` or `vllm:prefix_cache_hits_total` > 0, hit rate > 0% | Cache-aware routing with `precise-prefix-cache-producer` + `prefix-cache-scorer` |
+| `checkScheduler` | `test_13` | `llm_d_epp_scheduler_e2e_duration_seconds_count` (fallback `inference_extension_scheduler_e2e_duration_seconds_count`) > 0, `llm_d_epp_ready_endpoints` (fallback `inference_pool_ready_pods`) > 0 | Any topology with an EPP/scheduler |
+| `checkFlowControl` | `test_14` | `llm_d_epp_flow_control_dispatch_cycle_duration_seconds_count` (fallback `inference_extension_flow_control_dispatch_cycle_duration_seconds_count`) > 0, `llm_d_epp_flow_control_request_enqueue_duration_seconds_count` (fallback `inference_extension_flow_control_request_enqueue_duration_seconds_count`) > 0 | Flow control with `flowControl.saturationDetector` |
 | `checkPD` | `test_12` | P/D disaggregation metrics (prefill/decode split) | Prefill/decode topology |
 | `checkNIXL` | (future) | NIXL KV transfer count | NIXL-enabled KV cache transfer |
 
@@ -642,15 +642,15 @@ git add my-new-test.yaml
 git commit -m "add my-new-test manifest"
 git push
 
-# If the manifest is also compatible with 3.4, cherry-pick to 3.4-stable
-git checkout 3.4-stable
+# If the manifest is also compatible with 3.4, cherry-pick to 3.4-GA
+git checkout 3.4-GA
 git cherry-pick main
 git push
 ```
 
 **Branch rules:**
 - `main` = latest/greatest, targets the newest RHAII version — **always add here first**
-- `3.4-stable`, `3.5-GA`, etc. = version-specific branches with compatible EPP configs
+- `3.4-GA`, `3.5-GA`, etc. = version-specific branches with compatible EPP configs
 - If a manifest is compatible with older versions, cherry-pick from main to the stable branch
 - If a manifest is only valid for a specific version (e.g. uses 3.4-only plugins), add it only to that branch — do NOT add it to main
 - When a new release branch is created (e.g. `3.6-stable`), sync it from main so it starts with all latest manifests
