@@ -25,7 +25,7 @@ The test framework loads the config, patches the manifest (mock image swap, pull
 Create the LLMInferenceService YAML in the [conformance-manifests repo](https://github.com/opendatahub-io/llm-d-conformance-manifests). Use `single-gpu-smoke.yaml` as a minimal starting point:
 
 ```yaml
-apiVersion: serving.kserve.io/v1alpha1
+apiVersion: serving.kserve.io/v1alpha2
 kind: LLMInferenceService
 metadata:
   name: my-test-case
@@ -41,7 +41,6 @@ spec:
         - name: rhai-pull-secret
         containers:
         - name: main
-        - name: tokenizer
     route: {}
     gateway: {}
   template:
@@ -502,9 +501,9 @@ Each flag controls a specific conformance phase and validates different Promethe
 |---|---|---|---|
 | `checkVLLM` | `test_10` | `vllm:request_success_total > 0` | Always (basic sanity) |
 | `checkEPP` | — | Enables EPP pod scraping (required by other checks) | When using any EPP-level check |
-| `checkPrefixCache` | `test_11` | `prefix_queries > 0`, `prefix_hits >= 0`, hit rate | Cache-aware routing with `precise-prefix-cache-scorer` |
+| `checkPrefixCache` | `test_11` | `prefix_queries > 0`, `prefix_hits >= 0`, hit rate | Cache-aware routing with `precise-prefix-cache-producer` + `prefix-cache-scorer` |
 | `checkScheduler` | `test_13` | `scheduler_e2e_count > 0`, `ready_pods > 0` | Any topology with an EPP/scheduler |
-| `checkFlowControl` | `test_14` | `dispatch_cycle_count > 0`, `request_enqueue_count > 0` | Flow control with `saturationDetector` |
+| `checkFlowControl` | `test_14` | `dispatch_cycle_count > 0`, `request_enqueue_count > 0` | Flow control with `flowControl.saturationDetector` |
 | `checkPD` | `test_12` | P/D disaggregation metrics (prefill/decode split) | Prefill/decode topology |
 | `checkNIXL` | (future) | NIXL KV transfer count | NIXL-enabled KV cache transfer |
 
@@ -688,7 +687,7 @@ The **config YAML** comes pre-filled with:
 The **manifest YAML** comes pre-filled with:
 - `LLMInferenceService` with correct apiVersion
 - Pull secret references (`rhai-pull-secret`)
-- Scheduler with main + tokenizer containers
+- Scheduler with the `main` container
 - Resource limits with GPU request
 - Liveness probe on `/health:8000`
 
